@@ -1,23 +1,22 @@
 # Message Board
 
-A small message board built with Node.js, Express, plain HTML/CSS/JavaScript, and optional Supabase storage. The frontend and API are served from the same Express server. No login is required.
+A small message board built with Node.js, Express, plain HTML/CSS/JavaScript, and Supabase storage. The frontend and API are served from the same Express server. No login is required.
 
 ## Run locally
 
 Requirements: Node.js 18 or newer and npm.
 
-```sh
-npm install
-npm start
-```
+1. Create a Supabase project.
+2. Run the SQL in [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor. This creates the table if needed, enables RLS, and removes the app's former public policies without deleting rows.
+3. Copy [`.env.example`](.env.example) to `.env` and set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` from the project's API settings.
+4. Start the server:
 
-Open <http://localhost:3000>. Without Supabase environment variables, posts are kept in memory and disappear when the server restarts.
+   ```sh
+   npm install
+   npm start
+   ```
 
-## Use Supabase
-
-Create a Supabase project, then run the SQL in [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor. Add the project URL and anon key to a local `.env` file using [`.env.example`](.env.example) as a template. The key stays on the server; do not put it in `public/` or commit `.env`.
-
-Restart the app after setting the variables. When both values are present, posts are read from and written to the Supabase `posts` table. The schema grants public read and insert access for this no-login app, so anyone who can reach the app can post. Apply appropriate rate limits or access controls before deploying it publicly.
+Open <http://localhost:3000>. The Supabase client and secret key are used only by the Express server; never put the secret key in `public/` or commit `.env`. The server validates posts and accesses the table with the secret key, which bypasses RLS. The schema grants `service_role` only the `SELECT` and `INSERT` table privileges needed by the API. RLS remains enabled, and this setup does not add public policies.
 
 ## Test the API
 
@@ -36,3 +35,7 @@ curl http://localhost:3000/api/posts
 ```
 
 `POST /api/posts` requires a non-empty `name` (up to 80 characters) and `message` (up to 2,000 characters). It responds with the created post and HTTP `201`; `GET /api/posts` responds with an array of posts.
+
+### Test without losing existing data
+
+To avoid changing production data, first test against a separate Supabase project or a database backup. Applying the schema is non-destructive: it uses `CREATE TABLE IF NOT EXISTS` and only removes the two named public policies; it does not truncate or drop the table. `GET /api/posts` is read-only. A successful `POST` adds one row, so use a clearly identifiable test message and leave existing rows untouched. Do not run `supabase db reset`, `TRUNCATE`, or `DROP TABLE` against a database whose posts you need to keep.

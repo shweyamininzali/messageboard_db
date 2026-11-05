@@ -8,8 +8,11 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
+    "@supabase/supabase-js": "^2.119.0",
     "dotenv": "^16.4.7",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "supabase": "^3.0.0"
   }
 }

@@ -7,12 +7,7 @@ create table if not exists public.posts (
 
 alter table public.posts enable row level security;
 
-create policy "Anyone can read posts"
-  on public.posts for select
-  to anon
-  using (true);
+drop policy if exists "Anyone can read posts" on public.posts;
+drop policy if exists "Anyone can create posts" on public.posts;
 
-create policy "Anyone can create posts"
-  on public.posts for insert
-  to anon
-  with check (true);
+grant select, insert on public.posts to service_role;
