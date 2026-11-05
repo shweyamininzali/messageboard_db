@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f4ef" />
+    <title>Message Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="board-shell">
+      <header class="board-header">
+        <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> The neighborhood board</p>
+        <h1>A place to leave a note.</h1>
+        <p class="intro">Small thoughts, good news, and everything in between.</p>
+      </header>
+
+      <div class="board-layout">
+        <section class="compose-panel" aria-labelledby="compose-title">
+          <div class="section-heading">
+            <span class="section-number">01</span>
+            <h2 id="compose-title">Write a message</h2>
+          </div>
+          <form id="post-form">
+            <label for="name">Your name</label>
+            <input id="name" name="name" type="text" maxlength="80" autocomplete="name" placeholder="How should we call you?" required />
+
+            <label for="message">Your message</label>
+            <textarea id="message" name="message" maxlength="2000" rows="7" placeholder="Leave a little note..." required></textarea>
+
+            <div class="form-footer">
+              <span id="form-status" class="form-status" role="status" aria-live="polite"></span>
+              <button id="submit-button" type="submit">
+                <span>Post message</span>
+                <span class="button-arrow" aria-hidden="true">&#8599;</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="feed-panel" aria-labelledby="feed-title">
+          <div class="section-heading feed-heading">
+            <div class="feed-title-group">
+              <span class="section-number">02</span>
+              <h2 id="feed-title">The latest</h2>
+            </div>
+            <span id="post-count" class="post-count">0 notes</span>
+          </div>
+          <div id="post-list" class="post-list" aria-live="polite" aria-busy="true">
+            <p class="feed-state">Gathering the latest notes...</p>
+          </div>
+        </section>
+      </div>
+      <footer class="board-footer"><span>MESSAGE BOARD</span><span>OPEN TO EVERYONE</span></footer>
+    </main>
+  </body>
+</html>
