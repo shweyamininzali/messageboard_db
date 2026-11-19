@@ -19,6 +19,39 @@ const supabase = createClient(supabaseUrl, supabaseSecretKey, {
     persistSession: false,
   },
 });
+const eventClients = new Set();
+let realtimeStatus = 'CONNECTING';
+
+function sendEvent(response, event, data) {
+  response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+function broadcastEvent(event, data) {
+  for (const response of eventClients) {
+    if (!response.destroyed) {
+      sendEvent(response, event, data);
+    }
+  }
+}
+
+supabase
+  .channel('message-board-posts')
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'posts' },
+    ({ new: post }) => {
+      if (post) {
+        broadcastEvent('post', post);
+      }
+    },
+  )
+  .subscribe((status, error) => {
+    realtimeStatus = status;
+    broadcastEvent('status', { status });
+    if (status !== 'SUBSCRIBED') {
+      console.error(`Supabase Realtime status: ${status}`, error?.message || '');
+    }
+  });
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '10kb' }));
@@ -28,7 +61,8 @@ app.get('/api/posts', async (request, response, next) => {
     const { data, error } = await supabase
       .from('posts')
       .select('id, name, message, created_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) {
       throw error;
@@ -38,6 +72,29 @@ app.get('/api/posts', async (request, response, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+app.get('/api/posts/stream', (request, response) => {
+  response.set({
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'Content-Type': 'text/event-stream',
+    'X-Accel-Buffering': 'no',
+  });
+  response.flushHeaders();
+  eventClients.add(response);
+  sendEvent(response, 'status', { status: realtimeStatus });
+
+  const heartbeat = setInterval(() => {
+    if (!response.destroyed) {
+      response.write(': keep-alive\n\n');
+    }
+  }, 25000);
+
+  response.on('close', () => {
+    clearInterval(heartbeat);
+    eventClients.delete(response);
+  });
 });
 
 app.post('/api/posts', async (request, response, next) => {
