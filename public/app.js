@@ -5,6 +5,8 @@ const submitButton = document.querySelector('#submit-button');
 const formStatus = document.querySelector('#form-status');
 const postList = document.querySelector('#post-list');
 const postCount = document.querySelector('#post-count');
+const realtimeStatus = document.querySelector('#realtime-status');
+const messages = new Map();
 
 function formatTime(value) {
   const date = new Date(value);
@@ -18,14 +20,26 @@ function formatTime(value) {
   }).format(date);
 }
 
-function renderPosts(posts) {
+function setRealtimeStatus(status) {
+  const connected = status === 'SUBSCRIBED';
+  realtimeStatus.textContent = connected ? 'Live' : 'Reconnecting...';
+  realtimeStatus.classList.toggle('is-connected', connected);
+}
+
+function renderPosts() {
+  const posts = [...messages.values()].sort((first, second) =>
+    first.created_at.localeCompare(second.created_at),
+  );
+  const nearBottom =
+    postList.scrollHeight - postList.clientHeight - postList.scrollTop < 80;
+
   postList.replaceChildren();
-  postCount.textContent = `${posts.length} ${posts.length === 1 ? 'note' : 'notes'}`;
+  postCount.textContent = `${messages.size} ${messages.size === 1 ? 'message' : 'messages'}`;
 
   if (posts.length === 0) {
     const emptyState = document.createElement('p');
     emptyState.className = 'feed-state';
-    emptyState.textContent = 'No notes yet. Yours can be the first.';
+    emptyState.textContent = 'No messages yet. Start the conversation.';
     postList.append(emptyState);
     return;
   }
@@ -54,10 +68,22 @@ function renderPosts(posts) {
     article.append(meta, message);
     postList.append(article);
   }
+
+  if (nearBottom) {
+    postList.scrollTop = postList.scrollHeight;
+  }
+}
+
+function addPost(post) {
+  if (!post?.id || messages.has(post.id)) {
+    return;
+  }
+
+  messages.set(post.id, post);
+  renderPosts();
 }
 
 async function loadPosts() {
-  postList.setAttribute('aria-busy', 'true');
   try {
     const response = await fetch('/api/posts');
     const posts = await response.json();
@@ -65,16 +91,31 @@ async function loadPosts() {
       throw new Error(posts.error || 'Could not load messages.');
     }
 
-    renderPosts(posts);
+    for (const post of posts) {
+      addPost(post);
+    }
   } catch (error) {
-    const errorState = document.createElement('p');
-    errorState.className = 'feed-state';
-    errorState.textContent = error.message || 'Could not load messages. Please try again.';
-    postList.replaceChildren(errorState);
+    formStatus.textContent = error.message || 'Could not load messages. Please try again.';
+    formStatus.classList.add('is-error');
   } finally {
     postList.setAttribute('aria-busy', 'false');
   }
 }
+
+const eventSource = new EventSource('/api/posts/stream');
+eventSource.addEventListener('status', (event) => {
+  const { status } = JSON.parse(event.data);
+  setRealtimeStatus(status);
+  if (status === 'SUBSCRIBED') {
+    loadPosts();
+  }
+});
+eventSource.addEventListener('post', (event) => {
+  addPost(JSON.parse(event.data));
+});
+eventSource.onerror = () => {
+  setRealtimeStatus('RECONNECTING');
+};
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -96,14 +137,22 @@ form.addEventListener('submit', async (event) => {
       throw new Error(result.error || 'Could not post your message.');
     }
 
-    form.reset();
-    formStatus.textContent = 'Message posted.';
-    await loadPosts();
+    messageInput.value = '';
+    formStatus.textContent = 'Sent';
+    addPost(result);
+    messageInput.focus();
   } catch (error) {
     formStatus.textContent = error.message || 'Could not post your message. Please try again.';
     formStatus.classList.add('is-error');
   } finally {
     submitButton.disabled = false;
+  }
+});
+
+messageInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    form.requestSubmit();
   }
 });
 

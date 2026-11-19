@@ -11,3 +11,17 @@ drop policy if exists "Anyone can read posts" on public.posts;
 drop policy if exists "Anyone can create posts" on public.posts;
 
 grant select, insert on public.posts to service_role;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'posts'
+  ) then
+    alter publication supabase_realtime add table public.posts;
+  end if;
+end
+$$;
